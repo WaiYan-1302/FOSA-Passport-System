@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="theme-color" content="#38b5e1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+  <?!= include('Style'); ?>
+</head>
+
+<body>
+  <button id="languageToggle" class="language-toggle" type="button" onclick="toggleLanguage()">
+    日本語
+  </button>
+
+  <main class="app-shell">
+
+    <!-- Loading Screen -->
+    <section id="loadingScreen" class="screen active">
+      <div class="hero-card center-card">
+        <div id="loadingLogoBox" class="fixed-logo-box loading-logo-box" aria-label="FOSA logo">
+          <img id="loadingLogoImage" class="fixed-logo-img hidden" src="" alt="FOSA logo">
+          <span id="loadingFosaFallback" class="fixed-logo-text">FOSA</span>
+        </div>
+        <div class="loader" aria-hidden="true"></div>
+        <h1 data-i18n="loading.title">FOSA Passport</h1>
+        <p data-i18n="loading.subtitle">Loading your passport...</p>
+      </div>
+    </section>
+
+    <!-- Error Screen -->
+    <section id="errorScreen" class="screen">
+      <div class="hero-card">
+        <div class="status-icon error-icon">!</div>
+        <h1 data-i18n="error.title">Something went wrong</h1>
+        <p id="errorMessage" class="muted">Unknown error.</p>
+
+        <div class="help-box">
+          <p data-i18n="error.help">
+            Please check that your QR code URL contains a valid passport token or passport ID.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Registration Screen -->
+    <section id="registerScreen" class="screen">
+      <div class="hero-card">
+        <div class="top-brand-row">
+          <div id="registrationLogoBox" class="fixed-logo-box registration-logo-box" aria-label="FOSA logo">
+            <img id="registrationLogoImage" class="fixed-logo-img hidden" src="" alt="FOSA logo">
+            <span id="registrationFosaFallback" class="fixed-logo-text">FOSA</span>
+          </div>
+          <div>
+            <p class="eyebrow" data-i18n="register.eyebrow">First scan</p>
+            <h1 data-i18n="register.title">Register Your Passport</h1>
+          </div>
+        </div>
+
+        <p class="muted" data-i18n="register.subtitle">
+          Please register your profile before using your FOSA Passport.
+        </p>
+
+        <div class="notice-card">
+          <strong data-i18n="register.noticeTitle">Please check carefully</strong>
+          <p data-i18n="register.noticeBody">
+            After registration, you cannot change this information by yourself. If a correction is needed, please contact FOSA staff.
+          </p>
+        </div>
+
+        <form id="registrationForm" onsubmit="submitRegistration(event)">
+          <label for="displayName" data-i18n="register.displayName">Display name</label>
+          <input id="displayName" name="displayName" type="text" autocomplete="name" data-i18n-placeholder="register.displayNamePlaceholder" placeholder="Example: John Yamada" required>
+
+          <label for="university" data-i18n="register.university">University / School</label>
+          <input id="university" name="university" type="text" autocomplete="organization" data-i18n-placeholder="register.universityPlaceholder" placeholder="Example: Kyushu University">
+
+          <label for="email" data-i18n="register.email">Email</label>
+          <input id="email" name="email" type="email" autocomplete="email" data-i18n-placeholder="register.emailPlaceholder" placeholder="Example: name@example.com">
+
+          <label for="country" data-i18n="register.country">Country / Region</label>
+          <input id="country" name="country" type="text" autocomplete="country-name" data-i18n-placeholder="register.countryPlaceholder" placeholder="Example: Wakanda">
+
+          <label class="checkbox-row">
+            <input id="privacyAgree" type="checkbox" required>
+            <span data-i18n="register.privacyAgree">
+              I understand that the information will be viewed by FOSA staff and I agree to register my information for FOSA Passport use.
+            </span>
+          </label>
+
+          <p id="privacyPolicyRow" class="privacy-link-row hidden">
+            <a id="privacyPolicyLink" href="#" target="_blank" rel="noopener" data-i18n="register.privacyPolicy">
+              Read privacy policy
+            </a>
+          </p>
+
+          <button id="registerButton" class="primary-button" type="submit">
+            <span data-i18n="register.button">Register</span>
+          </button>
+
+          <p id="registerMessage" class="message" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+
+    <!-- Passport Screen -->
+    <section id="passportScreen" class="screen">
+
+      <header class="passport-hero">
+        <div class="avatar-ring">
+          <div id="profileInitial" class="avatar">F</div>
+        </div>
+
+        <div class="passport-main-info">
+          <p class="eyebrow" data-i18n="passport.eyebrow">FOSA Passport</p>
+          <h1 id="profileName">FOSA Passport</h1>
+          <p id="profileDetails" class="muted"></p>
+          <p id="passportId" class="passport-id"></p>
+        </div>
+      </header>
+
+      <section class="stats-grid">
+        <article class="stat-card">
+          <div id="stampCount" class="stat-number">0</div>
+          <div class="stat-label" data-i18n="passport.stamps">Stamps</div>
+        </article>
+
+        <article class="stat-card">
+          <div id="activeEventStatus" class="stat-number">-</div>
+          <div class="stat-label" data-i18n="passport.activeEvent">Active Event</div>
+        </article>
+      </section>
+
+      <nav class="tab-bar" aria-label="Passport tabs">
+        <button id="checkinTabButton" class="tab active" type="button" onclick="showTab('checkin')">
+          <span data-i18n="tabs.checkin">Check-in</span>
+        </button>
+
+        <button id="stampsTabButton" class="tab" type="button" onclick="showTab('stamps')">
+          <span data-i18n="tabs.stamps">Stamps</span>
+        </button>
+      </nav>
+
+      <!-- Check-in Tab -->
+      <section id="checkinTab" class="tab-content active">
+        <div class="content-card">
+          <div class="logo-zone">
+            <div class="brand-logo-wrap checkin-logo-wrap" data-logo-box aria-label="FOSA logo">
+              <div id="logoFallback" class="brand-mark large" data-logo-fallback>FOSA</div>
+            </div>
+          </div>
+
+          <h2 data-i18n="checkin.title">Event Check-in</h2>
+          <p class="muted" data-i18n="checkin.subtitle">
+            Enter the event word announced by FOSA staff to collect your stamp.
+          </p>
+
+          <div id="activeEventBox" class="event-box">
+            <p class="muted" data-i18n="checkin.loadingEvent">Loading active event...</p>
+          </div>
+
+          <form id="checkinForm" onsubmit="submitCheckIn(event)">
+            <label for="eventPassword" data-i18n="checkin.eventWord">Event word</label>
+            <input id="eventPassword" type="text" inputmode="text" autocapitalize="characters" data-i18n-placeholder="checkin.eventWordPlaceholder" placeholder="Enter event word">
+
+            <button id="checkinButton" class="primary-button" type="submit">
+              <span data-i18n="checkin.button">Check in</span>
+            </button>
+
+            <p id="checkinMessage" class="message" aria-live="polite"></p>
+          </form>
+        </div>
+      </section>
+
+      <!-- Stamps Tab -->
+      <section id="stampsTab" class="tab-content">
+        <div class="content-card">
+          <div class="section-heading-row">
+            <div>
+              <h2 data-i18n="stamps.title">Your Stamps</h2>
+              <p class="muted" data-i18n="stamps.subtitle">Your FOSA event history appears here.</p>
+            </div>
+          </div>
+
+          <div id="stampGrid" class="stamp-grid"></div>
+        </div>
+      </section>
+
+    </section>
+
+  </main>
+
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+  <script>
+    const PASSPORT_KEY = <?!= JSON.stringify((typeof passportKey !== 'undefined' && passportKey) ? passportKey : '') ?>;
+    const APP_VERSION = <?!= JSON.stringify((typeof appVersion !== 'undefined' && appVersion) ? appVersion : '') ?>;
+    const INITIAL_SETTINGS = <?!= JSON.stringify((typeof initialSettings !== 'undefined' && initialSettings) ? initialSettings : {}) ?>;
+
+    const LANGUAGE_STORAGE_KEY = 'fosaPassportLanguage';
+
+    let currentLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY) || 'en';
+    let currentData = null;
+    let activeTab = 'checkin';
+
+    const I18N = {
+      en: {
+        'loading.title': 'FOSA Passport',
+        'loading.subtitle': 'Loading your passport...',
+
+        'error.title': 'Something went wrong',
+        'error.help': 'Please check that your QR code URL contains a valid passport token or passport ID.',
+
+        'register.eyebrow': 'First scan',
+        'register.title': 'Register Your Passport',
+        'register.subtitle': 'Please register your profile before using your FOSA Passport.',
+        'register.noticeTitle': 'Please check carefully',
+        'register.noticeBody': 'After registration, you cannot change this information by yourself. If a correction is needed, please contact FOSA staff.',
+        'register.displayName': 'Display name',
+        'register.displayNamePlaceholder': 'Example: John Yamada',
+        'register.university': 'University / School',
+        'register.universityPlaceholder': 'Example: Kyushu University',
+        'register.email': 'Email',
+        'register.emailPlaceholder': 'Example: name@example.com',
+        'register.country': 'Country / Region',
+        'register.countryPlaceholder': 'Example: Wakanda',
+        'register.privacyAgree': 'I understand that the information will be viewed by FOSA staff and I agree to register my information for FOSA Passport use.',
+        'register.privacyPolicy': 'Read privacy policy',
+        'register.button': 'Register',
+        'register.loading': 'Registering...',
+
+        'passport.eyebrow': 'FOSA Passport',
+        'passport.stamps': 'Stamps',
+        'passport.activeEvent': 'Active Event',
+        'passport.idLabel': 'Passport ID',
+        'passport.yes': 'Yes',
+        'passport.no': 'No',
+
+        'tabs.checkin': 'Check-in',
+        'tabs.stamps': 'Stamps',
+
+        'checkin.title': 'Event Check-in',
+        'checkin.subtitle': 'Enter the event word announced by FOSA staff to collect your stamp.',
+        'checkin.loadingEvent': 'Loading active event...',
+        'checkin.noActiveEvent': 'No active event is available now.',
+        'checkin.eventWord': 'Event word',
+        'checkin.eventWordPlaceholder': 'Enter event word',
+        'checkin.button': 'Check in',
+        'checkin.loading': 'Checking in...',
+
+        'stamps.title': 'Your Stamps',
+        'stamps.subtitle': 'Your FOSA event history appears here.',
+        'stamps.emptyTitle': 'No stamps yet',
+        'stamps.emptyBody': 'Join a FOSA event and enter the event word to collect your first stamp.',
+
+        'server.missing_key': 'Passport key is missing.',
+        'server.passport_not_found': 'Passport not found.',
+        'server.passport_inactive': 'This passport is not active.',
+        'server.privacy_required': 'Please agree to the privacy notice before registering.',
+        'server.display_name_required': 'Display name is required.',
+        'server.invalid_email': 'Please enter a valid email address or leave it blank.',
+        'server.already_registered': 'This passport has already been registered.',
+        'server.event_word_required': 'Please enter the event word.',
+        'server.registration_required': 'Please register your profile first.',
+        'server.no_active_event': 'No active event is available now.',
+        'server.incorrect_event_word': 'Incorrect event word.',
+        'server.already_checked_in': 'You have already checked in for this event.',
+        'server.checkin_done': 'Check-in completed.',
+        'server.server_error': 'Server error. Please try again.'
+      },
+
+      ja: {
+        'loading.title': 'FOSA Passport',
+        'loading.subtitle': 'パスポートを読み込んでいます...',
+
+        'error.title': 'エラーが発生しました',
+        'error.help': 'QRコードのURLに有効なパスポートIDまたはトークンが含まれているか確認してください。',
+
+        'register.eyebrow': '初回スキャン',
+        'register.title': 'パスポート登録',
+        'register.subtitle': 'FOSA Passportを使う前に、プロフィールを登録してください。',
+        'register.noticeTitle': '登録前に確認してください',
+        'register.noticeBody': '登録後、この情報は自分では変更できません。修正が必要な場合はFOSAスタッフに連絡してください。',
+        'register.displayName': '表示名',
+        'register.displayNamePlaceholder': '例：John Yamada',
+        'register.university': '大学・学校',
+        'register.universityPlaceholder': '例：九州大学',
+        'register.email': 'メールアドレス',
+        'register.emailPlaceholder': '例：name@example.com',
+        'register.country': '国・地域',
+        'register.countryPlaceholder': '例：Wakanda',
+        'register.privacyAgree': '登録情報がFOSAスタッフに閲覧されることを理解し、FOSA Passportの利用のために情報を登録することに同意します。',
+        'register.privacyPolicy': 'プライバシーポリシーを見る',
+        'register.button': '登録する',
+        'register.loading': '登録中...',
+
+        'passport.eyebrow': 'FOSA Passport',
+        'passport.stamps': 'スタンプ',
+        'passport.activeEvent': '開催中イベント',
+        'passport.idLabel': 'Passport ID',
+        'passport.yes': 'あり',
+        'passport.no': 'なし',
+
+        'tabs.checkin': 'チェックイン',
+        'tabs.stamps': 'スタンプ',
+
+        'checkin.title': 'イベントチェックイン',
+        'checkin.subtitle': 'FOSAスタッフから案内されたイベントワードを入力すると、スタンプを獲得できます。',
+        'checkin.loadingEvent': '開催中イベントを読み込んでいます...',
+        'checkin.noActiveEvent': '現在、開催中のイベントはありません。',
+        'checkin.eventWord': 'イベントワード',
+        'checkin.eventWordPlaceholder': 'イベントワードを入力',
+        'checkin.button': 'チェックイン',
+        'checkin.loading': '確認中...',
+
+        'stamps.title': 'あなたのスタンプ',
+        'stamps.subtitle': 'FOSAイベントの参加履歴がここに表示されます。',
+        'stamps.emptyTitle': 'まだスタンプはありません',
+        'stamps.emptyBody': 'FOSAイベントに参加して、イベントワードを入力すると最初のスタンプを獲得できます。',
+
+        'server.missing_key': 'パスポートキーがありません。',
+        'server.passport_not_found': 'パスポートが見つかりません。',
+        'server.passport_inactive': 'このパスポートは現在利用できません。',
+        'server.privacy_required': '登録前に同意チェックをしてください。',
+        'server.display_name_required': '表示名を入力してください。',
+        'server.invalid_email': '正しいメールアドレスを入力するか、空欄にしてください。',
+        'server.already_registered': 'このパスポートはすでに登録されています。',
+        'server.event_word_required': 'イベントワードを入力してください。',
+        'server.registration_required': '先にプロフィール登録をしてください。',
+        'server.no_active_event': '現在、開催中のイベントはありません。',
+        'server.incorrect_event_word': 'イベントワードが違います。',
+        'server.already_checked_in': 'このイベントはすでにチェックイン済みです。',
+        'server.checkin_done': 'チェックインが完了しました。',
+        'server.server_error': 'サーバーエラーです。もう一度お試しください。'
+      }
+    };
+
+    window.addEventListener('load', function () {
+      applyLanguage();
+      bootApp();
+    });
+
+    function bootApp() {
+      const cachedLogoUrl = localStorage.getItem('fosaLogoUrl') || '';
+      applyLogo(cachedLogoUrl ? { fosa_logo_url: cachedLogoUrl } : INITIAL_SETTINGS);
+
+      if (!PASSPORT_KEY) {
+        showError(tr('server.missing_key'));
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(function (settings) {
+          if (settings && settings.fosa_logo_url) {
+            localStorage.setItem('fosaLogoUrl', settings.fosa_logo_url);
+            applyLogo(settings);
+          } else {
+            applyLogo(INITIAL_SETTINGS);
+          }
+
+          loadPassport();
+        })
+        .withFailureHandler(function () {
+          loadPassport();
+        })
+        .getInitialSettings();
+    }
+
+    function loadPassport() {
+      showScreen('loadingScreen');
+
+      google.script.run
+        .withSuccessHandler(function (result) {
+          if (!result || !result.ok) {
+            showError(getResultMessage(result, tr('server.server_error')));
+            return;
+          }
+
+          currentData = result;
+
+          if (result.requiresRegistration) {
+            renderRegistration(result);
+          } else {
+            renderPassport(result);
+          }
+        })
+        .withFailureHandler(function (error) {
+          showError(error && error.message ? error.message : String(error));
+        })
+        .getPassportData(PASSPORT_KEY);
+    }
+
+    function renderRegistration(data) {
+      currentData = data;
+      applyLogo(data.settings);
+      renderPrivacyPolicy(data.settings);
+      showScreen('registerScreen');
+    }
+
+    function submitRegistration(event) {
+      event.preventDefault();
+
+      const message = document.getElementById('registerMessage');
+      const button = document.getElementById('registerButton');
+
+      setMessage(message, tr('register.loading'), 'neutral');
+      setButtonLoading(button, true);
+
+      const profile = {
+        displayName: document.getElementById('displayName').value,
+        university: document.getElementById('university').value,
+        email: document.getElementById('email').value,
+        country: document.getElementById('country').value
+      };
+
+      const agreed = document.getElementById('privacyAgree').checked;
+
+      google.script.run
+        .withSuccessHandler(function (result) {
+          setButtonLoading(button, false);
+
+          if (!result || !result.ok) {
+            setMessage(message, getResultMessage(result, tr('server.server_error')), 'error');
+            return;
+          }
+
+          if (result.data && result.data.ok) {
+            currentData = result.data;
+            renderPassport(result.data);
+            showToast(getResultMessage(result, tr('server.already_registered')));
+            return;
+          }
+
+          currentData = result;
+          renderPassport(result);
+          showToast(tr('register.button'));
+        })
+        .withFailureHandler(function (error) {
+          setButtonLoading(button, false);
+          setMessage(message, error && error.message ? error.message : String(error), 'error');
+        })
+        .registerProfile(PASSPORT_KEY, profile, agreed);
+    }
+
+    function renderPassport(data) {
+      currentData = data;
+
+      const participant = data.participant || {};
+      const attendance = data.attendance || [];
+
+      applyLogo(data.settings);
+
+      const name = participant.display_name || 'FOSA Passport';
+      const details = [participant.university, participant.country].filter(Boolean).join(' / ');
+
+      document.getElementById('profileName').textContent = name;
+      document.getElementById('profileInitial').textContent = getInitial(name);
+      document.getElementById('profileDetails').textContent = details;
+      document.getElementById('passportId').textContent = `${tr('passport.idLabel')}: ${participant.passport_id || '-'}`;
+      document.getElementById('stampCount').textContent = attendance.length;
+
+      renderActiveEvent(data.activeEvent);
+      renderStamps(attendance);
+
+      showScreen('passportScreen');
+      showTab(activeTab);
+    }
+
+    function renderActiveEvent(eventData) {
+      const box = document.getElementById('activeEventBox');
+      const status = document.getElementById('activeEventStatus');
+      const input = document.getElementById('eventPassword');
+      const button = document.getElementById('checkinButton');
+
+      if (!eventData) {
+        status.textContent = tr('passport.no');
+        input.disabled = true;
+        button.disabled = true;
+
+        box.innerHTML = `
+          <div class="empty-event">
+            <div class="mini-icon">–</div>
+            <p>${escapeHtml(tr('checkin.noActiveEvent'))}</p>
+          </div>
+        `;
+        return;
+      }
+
+      status.textContent = tr('passport.yes');
+      input.disabled = false;
+      button.disabled = false;
+
+      const eventName = getLocalizedEventName(eventData);
+      const timeLine = [eventData.start_time, eventData.end_time ? '– ' + eventData.end_time : '']
+        .filter(Boolean)
+        .join(' ');
+
+      box.innerHTML = `
+        <div class="event-card-inner">
+          <div class="event-badge">LIVE</div>
+          <div>
+            <h3>${escapeHtml(eventName)}</h3>
+            <p>${escapeHtml(eventData.event_date || '')}</p>
+            <p>${escapeHtml(timeLine)}</p>
+          </div>
+        </div>
+      `;
+    }
+
+    function submitCheckIn(event) {
+      event.preventDefault();
+
+      const passwordInput = document.getElementById('eventPassword');
+      const message = document.getElementById('checkinMessage');
+      const button = document.getElementById('checkinButton');
+
+      setMessage(message, tr('checkin.loading'), 'neutral');
+      setButtonLoading(button, true);
+
+      google.script.run
+        .withSuccessHandler(function (result) {
+          setButtonLoading(button, false);
+
+          if (!result || !result.ok) {
+            setMessage(message, getResultMessage(result, tr('server.server_error')), 'error');
+            return;
+          }
+
+          const displayMessage = getResultMessage(result, tr('server.checkin_done'));
+          setMessage(message, displayMessage, result.alreadyCheckedIn ? 'info' : 'success');
+
+          passwordInput.value = '';
+
+          if (result.data && result.data.ok) {
+            currentData = result.data;
+            activeTab = 'stamps';
+            renderPassport(result.data);
+          }
+
+          showToast(displayMessage);
+        })
+        .withFailureHandler(function (error) {
+          setButtonLoading(button, false);
+          setMessage(message, error && error.message ? error.message : String(error), 'error');
+        })
+        .checkIn(PASSPORT_KEY, passwordInput.value);
+    }
+
+    function renderStamps(attendance) {
+      const grid = document.getElementById('stampGrid');
+
+      if (!attendance || attendance.length === 0) {
+        grid.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-stamp">FOSA</div>
+            <h3>${escapeHtml(tr('stamps.emptyTitle'))}</h3>
+            <p>${escapeHtml(tr('stamps.emptyBody'))}</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = attendance.map(item => {
+        const eventName = getLocalizedEventName(item);
+        const eventDate = item.event_date || item.timestamp || '';
+
+        return `
+          <article class="stamp-item">
+            <div class="stamp-circle">
+              ${
+                item.image_url
+                  ? `<img src="${escapeHtml(item.image_url)}" alt="${escapeHtml(eventName)}">`
+                  : `<span>FOSA</span>`
+              }
+            </div>
+            <h3>${escapeHtml(eventName)}</h3>
+            <p>${escapeHtml(eventDate)}</p>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function showTab(tabName) {
+      activeTab = tabName;
+
+      const tabs = ['checkin', 'stamps'];
+
+      tabs.forEach(name => {
+        document.getElementById(name + 'Tab').classList.toggle('active', name === tabName);
+        document.getElementById(name + 'TabButton').classList.toggle('active', name === tabName);
+      });
+    }
+
+    function showScreen(screenId) {
+      document.querySelectorAll('.screen').forEach(screen => {
+        screen.classList.remove('active');
+      });
+
+      const target = document.getElementById(screenId);
+      if (target) target.classList.add('active');
+    }
+
+    function showError(message) {
+      document.getElementById('errorMessage').textContent = message || tr('server.server_error');
+      showScreen('errorScreen');
+    }
+
+    function toggleLanguage() {
+      currentLanguage = currentLanguage === 'en' ? 'ja' : 'en';
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, currentLanguage);
+
+      applyLanguage();
+
+      if (currentData && !currentData.requiresRegistration) {
+        renderPassport(currentData);
+      } else if (currentData && currentData.requiresRegistration) {
+        renderPrivacyPolicy(currentData.settings);
+      }
+    }
+
+    function applyLanguage() {
+      document.documentElement.lang = currentLanguage;
+
+      document.getElementById('languageToggle').textContent =
+        currentLanguage === 'en' ? '日本語' : 'English';
+
+      document.querySelectorAll('[data-i18n]').forEach(element => {
+        const key = element.getAttribute('data-i18n');
+        element.textContent = tr(key);
+      });
+
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+        const key = element.getAttribute('data-i18n-placeholder');
+        element.placeholder = tr(key);
+      });
+    }
+
+    function tr(key) {
+      return (
+        I18N[currentLanguage] &&
+        I18N[currentLanguage][key]
+      ) || I18N.en[key] || key;
+    }
+
+    function getResultMessage(result, fallback) {
+      if (!result) return fallback;
+
+      if (result.code) {
+        const translated = tr('server.' + result.code);
+        if (translated !== 'server.' + result.code) {
+          return translated;
+        }
+      }
+
+      return result.message || fallback;
+    }
+
+    function getLocalizedEventName(item) {
+      if (!item) return '';
+
+      if (currentLanguage === 'ja') {
+        return item.event_name_ja || item.event_name || item.event_name_en || item.event_id || 'FOSA Event';
+      }
+
+      return item.event_name_en || item.event_name || item.event_name_ja || item.event_id || 'FOSA Event';
+    }
+
+    function getInitial(name) {
+      const text = String(name || '').trim();
+
+      if (!text) return 'F';
+
+      return text.charAt(0).toUpperCase();
+    }
+
+    function applyLogo(settings) {
+      const url = settings && settings.fosa_logo_url ? settings.fosa_logo_url : '';
+
+      setFixedLogoImage('loadingLogoImage', 'loadingFosaFallback', url);
+      setFixedLogoImage('registrationLogoImage', 'registrationFosaFallback', url);
+
+      // Keep the existing check-in/passport logo behavior, but never affect layout size.
+      const logoBoxes = document.querySelectorAll('[data-logo-box]');
+      const logoFallbacks = document.querySelectorAll('[data-logo-fallback]');
+
+      if (url) {
+        logoBoxes.forEach(function (box) {
+          box.style.setProperty('--logo-url', 'url("' + encodeCssUrl(url) + '")');
+          box.classList.add('logo-has-image');
+        });
+
+        logoFallbacks.forEach(function (fallback) {
+          fallback.classList.add('hidden');
+        });
+      } else {
+        logoBoxes.forEach(function (box) {
+          box.style.removeProperty('--logo-url');
+          box.classList.remove('logo-has-image');
+        });
+
+        logoFallbacks.forEach(function (fallback) {
+          fallback.classList.remove('hidden');
+        });
+      }
+    }
+
+    function setFixedLogoImage(imageId, fallbackId, url) {
+      const image = document.getElementById(imageId);
+      const fallback = document.getElementById(fallbackId);
+
+      if (!image || !fallback) return;
+
+      if (!url) {
+        image.removeAttribute('src');
+        image.classList.add('hidden');
+        fallback.classList.remove('hidden');
+        return;
+      }
+
+      image.onload = function () {
+        image.classList.remove('hidden');
+        fallback.classList.add('hidden');
+      };
+
+      image.onerror = function () {
+        image.classList.add('hidden');
+        fallback.classList.remove('hidden');
+      };
+
+      if (image.src !== url) {
+        image.src = url;
+      } else if (image.complete && image.naturalWidth > 0) {
+        image.classList.remove('hidden');
+        fallback.classList.add('hidden');
+      }
+    }
+
+    function encodeCssUrl(url) {
+      return String(url || '')
+        .replace(/\/g, '\\')
+        .replace(/"/g, '\"')
+        .replace(/?
+/g, '');
+    }
+
+    function renderPrivacyPolicy(settings) {
+      const row = document.getElementById('privacyPolicyRow');
+      const link = document.getElementById('privacyPolicyLink');
+
+      if (!row || !link) return;
+
+      const url = settings && settings.privacy_policy_url ? settings.privacy_policy_url : '';
+
+      if (url) {
+        link.href = url;
+        row.classList.remove('hidden');
+      } else {
+        row.classList.add('hidden');
+      }
+    }
+
+    function setMessage(element, text, type) {
+      if (!element) return;
+
+      element.textContent = text || '';
+      element.className = 'message';
+
+      if (type) {
+        element.classList.add(type);
+      }
+    }
+
+    function setButtonLoading(button, isLoading) {
+      if (!button) return;
+
+      button.disabled = isLoading;
+      button.classList.toggle('loading', isLoading);
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+
+      toast.textContent = message;
+      toast.classList.remove('hidden');
+
+      window.clearTimeout(showToast._timer);
+      showToast._timer = window.setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 2600);
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>
